@@ -1,17 +1,58 @@
-# hacela_rendir
+# 🚀 HACELA RENDIR
 
-A new Flutter project.
+## La plataforma profesional para seguimiento y análisis de inversiones.
 
-## Getting Started
+Hacela Rendir es una plataforma desarrollada para que cualquier inversor pueda conectar todas sus cuentas de inversión y realizar un seguimiento completo de su patrimonio.
 
-This project is a starting point for a Flutter application.
+---
 
-A few resources to get you started if this is your first Flutter project:
+# Objetivos
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+- Seguimiento de cartera
+- Portfolio Analytics
+- Risk Management
+- Investment Journal
+- Benchmarking
+- Research
+- Dashboard Institucional
+- Inteligencia Artificial
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+---
+
+# Roadmap
+
+## Fase 1
+- [ ] Diseño UX/UI
+- [ ] Design System
+- [ ] Flutter Base
+
+## Fase 2
+- [ ] Dashboard
+- [ ] Portfolio
+- [ ] Riesgo
+- [ ] Journal
+
+## Fase 3
+- [ ] Brokers
+- [ ] API
+- [ ] Base de Datos
+
+## Fase 4
+- [ ] Inteligencia Artificial
+- [ ] Monte Carlo
+- [ ] Portfolio Optimizer
+
+---
+
+## Tecnologías
+
+- Flutter
+- Dart
+- FastAPI
+- PostgreSQL
+- Docker
+- GitHub Actions
+
+---
+
+Proyecto en desarrollo.

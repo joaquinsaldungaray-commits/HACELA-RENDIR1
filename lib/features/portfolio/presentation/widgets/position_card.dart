@@ -8,12 +8,14 @@ class PositionCard extends StatelessWidget {
   const PositionCard({
     required this.position,
     required this.portfolioTotal,
+    required this.onEdit,
     required this.onDelete,
     super.key,
   });
 
   final PortfolioPosition position;
   final double portfolioTotal;
+  final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   @override
@@ -112,11 +114,28 @@ class PositionCard extends StatelessWidget {
                 ),
                 color: AppColors.surfaceAlt,
                 onSelected: (value) {
-                  if (value == 'delete') {
-                    onDelete();
+                  switch (value) {
+                    case 'edit':
+                      onEdit();
+                    case 'delete':
+                      onDelete();
                   }
                 },
                 itemBuilder: (context) => const [
+                  PopupMenuItem<String>(
+                    value: 'edit',
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.edit_outlined,
+                          color: AppColors.textPrimary,
+                        ),
+                        SizedBox(width: AppSpacing.sm),
+                        Text('Editar posición'),
+                      ],
+                    ),
+                  ),
+                  PopupMenuDivider(),
                   PopupMenuItem<String>(
                     value: 'delete',
                     child: Row(

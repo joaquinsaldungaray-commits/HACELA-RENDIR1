@@ -37,6 +37,20 @@ class _AddPositionDialogState extends State<AddPositionDialog> {
     );
   }
 
+  String? validatePositiveNumber(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Este campo es obligatorio.';
+    }
+
+    final number = parseNumber(value);
+
+    if (number == null || number <= 0) {
+      return 'Ingresá un número mayor que cero.';
+    }
+
+    return null;
+  }
+
   void submit() {
     if (!(formKey.currentState?.validate() ?? false)) {
       return;
@@ -74,9 +88,7 @@ class _AddPositionDialogState extends State<AddPositionDialog> {
         ),
       ),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(
-          maxWidth: 480,
-        ),
+        constraints: const BoxConstraints(maxWidth: 480),
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(AppSpacing.lg),
           child: Form(
@@ -107,7 +119,6 @@ class _AddPositionDialogState extends State<AddPositionDialog> {
                     if (value == null || value.trim().isEmpty) {
                       return 'Ingresá el ticker.';
                     }
-
                     return null;
                   },
                 ),
@@ -120,7 +131,6 @@ class _AddPositionDialogState extends State<AddPositionDialog> {
                     if (value == null || value.trim().isEmpty) {
                       return 'Ingresá el nombre del activo.';
                     }
-
                     return null;
                   },
                 ),
@@ -174,20 +184,6 @@ class _AddPositionDialogState extends State<AddPositionDialog> {
         ),
       ),
     );
-  }
-
-  String? validatePositiveNumber(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'Este campo es obligatorio.';
-    }
-
-    final number = parseNumber(value);
-
-    if (number == null || number <= 0) {
-      return 'Ingresá un número mayor que cero.';
-    }
-
-    return null;
   }
 }
 

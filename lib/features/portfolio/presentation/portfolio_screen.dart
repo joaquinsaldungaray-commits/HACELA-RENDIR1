@@ -9,6 +9,7 @@ import 'package:hacela_rendir/features/portfolio/data/demo_portfolio_data.dart';
 import 'package:hacela_rendir/features/portfolio/data/portfolio_repository.dart';
 import 'package:hacela_rendir/features/portfolio/domain/portfolio_position.dart';
 import 'package:hacela_rendir/features/portfolio/presentation/widgets/add_position_dialog.dart';
+import 'package:hacela_rendir/features/portfolio/presentation/widgets/edit_position_dialog.dart';
 import 'package:hacela_rendir/features/portfolio/presentation/widgets/position_card.dart';
 
 class PortfolioScreen extends StatefulWidget {
@@ -49,12 +50,12 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
   Future<void> addPosition() async {
     final newPosition = await showDialog<PortfolioPosition>(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return const AddPositionDialog();
       },
     );
 
-    if (newPosition == null) {
+    if (newPosition == null || !mounted) {
       return;
     }
 
@@ -63,6 +64,59 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
     });
 
     await repository.savePositions(positions);
+
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          '${newPosition.ticker} fue agregado a la cartera.',
+        ),
+      ),
+    );
+  }
+
+  Future<void> editPosition(
+    PortfolioPosition position,
+  ) async {
+    final updatedPosition = await showDialog<PortfolioPosition>(
+      context: context,
+      builder: (dialogContext) {
+        return EditPositionDialog(
+          position: position,
+        );
+      },
+    );
+
+    if (updatedPosition == null || !mounted) {
+      return;
+    }
+
+    final positionIndex = positions.indexOf(position);
+
+    if (positionIndex == -1) {
+      return;
+    }
+
+    setState(() {
+      positions[positionIndex] = updatedPosition;
+    });
+
+    await repository.savePositions(positions);
+
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          '${updatedPosition.ticker} fue actualizado.',
+        ),
+      ),
+    );
   }
 
   Future<void> deletePosition(
@@ -72,7 +126,9 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('Eliminar posición'),
+          title: const Text(
+            'Eliminar posición',
+          ),
           content: Text(
             '¿Querés eliminar ${position.ticker} de tu cartera?',
           ),
@@ -81,7 +137,9 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
               onPressed: () {
                 Navigator.of(dialogContext).pop(false);
               },
-              child: const Text('Cancelar'),
+              child: const Text(
+                'Cancelar',
+              ),
             ),
             FilledButton(
               onPressed: () {
@@ -91,14 +149,16 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                 backgroundColor: AppColors.danger,
                 foregroundColor: Colors.white,
               ),
-              child: const Text('Eliminar'),
+              child: const Text(
+                'Eliminar',
+              ),
             ),
           ],
         );
       },
     );
 
-    if (confirmed != true) {
+    if (confirmed != true || !mounted) {
       return;
     }
 
@@ -131,7 +191,9 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
       );
     }
 
-    final metrics = PortfolioCalculator.calculate(positions);
+    final metrics = PortfolioCalculator.calculate(
+      positions,
+    );
 
     final resultColor = metrics.isPositive
         ? AppColors.primary
@@ -175,7 +237,9 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppSpacing.lg),
+          padding: const EdgeInsets.all(
+            AppSpacing.lg,
+          ),
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(
@@ -190,13 +254,19 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                       color: AppColors.textPrimary,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.md),
+                  const SizedBox(
+                    height: AppSpacing.md,
+                  ),
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    padding: const EdgeInsets.all(
+                      AppSpacing.lg,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(
+                        20,
+                      ),
                       border: Border.all(
                         color: AppColors.border,
                       ),
@@ -210,14 +280,18 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                             color: AppColors.textSecondary,
                           ),
                         ),
-                        const SizedBox(height: AppSpacing.xs),
+                        const SizedBox(
+                          height: AppSpacing.xs,
+                        ),
                         Text(
                           'USD ${metrics.marketValue.toStringAsFixed(2)}',
                           style: AppTypography.displayMedium.copyWith(
                             color: AppColors.textPrimary,
                           ),
                         ),
-                        const SizedBox(height: AppSpacing.md),
+                        const SizedBox(
+                          height: AppSpacing.md,
+                        ),
                         Wrap(
                           spacing: AppSpacing.md,
                           runSpacing: AppSpacing.sm,
@@ -238,7 +312,9 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: AppSpacing.lg),
+                        const SizedBox(
+                          height: AppSpacing.lg,
+                        ),
                         Row(
                           children: [
                             Expanded(
@@ -248,14 +324,18 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                                     'USD ${metrics.investedValue.toStringAsFixed(2)}',
                               ),
                             ),
-                            const SizedBox(width: AppSpacing.sm),
+                            const SizedBox(
+                              width: AppSpacing.sm,
+                            ),
                             Expanded(
                               child: _SummaryMetric(
                                 label: 'Posiciones',
                                 value: '${metrics.positionsCount}',
                               ),
                             ),
-                            const SizedBox(width: AppSpacing.sm),
+                            const SizedBox(
+                              width: AppSpacing.sm,
+                            ),
                             Expanded(
                               child: _SummaryMetric(
                                 label: 'Mayor concentración',
@@ -268,7 +348,9 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.xl),
+                  const SizedBox(
+                    height: AppSpacing.xl,
+                  ),
                   Row(
                     children: [
                       Expanded(
@@ -287,7 +369,9 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: AppSpacing.md),
+                  const SizedBox(
+                    height: AppSpacing.md,
+                  ),
                   if (positions.isEmpty)
                     const _EmptyPortfolio()
                   else
@@ -295,13 +379,20 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                       PositionCard(
                         position: position,
                         portfolioTotal: metrics.marketValue,
+                        onEdit: () {
+                          editPosition(position);
+                        },
                         onDelete: () {
                           deletePosition(position);
                         },
                       ),
-                      const SizedBox(height: AppSpacing.sm),
+                      const SizedBox(
+                        height: AppSpacing.sm,
+                      ),
                     ],
-                  const SizedBox(height: AppSpacing.xxxl),
+                  const SizedBox(
+                    height: AppSpacing.xxxl,
+                  ),
                 ],
               ),
             ),
@@ -324,10 +415,14 @@ class _SummaryMetric extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: const EdgeInsets.all(
+        AppSpacing.md,
+      ),
       decoration: BoxDecoration(
         color: AppColors.surfaceAlt,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(
+          14,
+        ),
         border: Border.all(
           color: AppColors.border,
         ),
@@ -341,7 +436,9 @@ class _SummaryMetric extends StatelessWidget {
               color: AppColors.textSecondary,
             ),
           ),
-          const SizedBox(height: AppSpacing.xs),
+          const SizedBox(
+            height: AppSpacing.xs,
+          ),
           Text(
             value,
             style: AppTypography.titleMedium.copyWith(
@@ -361,10 +458,14 @@ class _EmptyPortfolio extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.xl),
+      padding: const EdgeInsets.all(
+        AppSpacing.xl,
+      ),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(
+          18,
+        ),
         border: Border.all(
           color: AppColors.border,
         ),
@@ -376,14 +477,18 @@ class _EmptyPortfolio extends StatelessWidget {
             size: 48,
             color: AppColors.textSecondary,
           ),
-          const SizedBox(height: AppSpacing.md),
+          const SizedBox(
+            height: AppSpacing.md,
+          ),
           Text(
             'Todavía no hay posiciones',
             style: AppTypography.titleLarge.copyWith(
               color: AppColors.textPrimary,
             ),
           ),
-          const SizedBox(height: AppSpacing.xs),
+          const SizedBox(
+            height: AppSpacing.xs,
+          ),
           Text(
             'Agregá tu primera inversión para comenzar.',
             textAlign: TextAlign.center,

@@ -114,13 +114,7 @@ class DashboardScreen extends StatelessWidget {
                     label: 'Ver mi cartera',
                     icon: Icons.account_balance_wallet_outlined,
                     onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Próximo módulo: cartera de inversión.',
-                          ),
-                        ),
-                      );
+                      context.go(AppRoutes.portfolio);
                     },
                   ),
                   const SizedBox(height: AppSpacing.sm),

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:hacela_rendir/app/router/app_routes.dart';
 import 'package:hacela_rendir/core/design_system/app_button.dart';
 import 'package:hacela_rendir/core/design_system/app_spacing.dart';
 import 'package:hacela_rendir/core/design_system/app_typography.dart';
@@ -57,13 +59,7 @@ class WelcomeScreen extends StatelessWidget {
                     label: 'Comenzar',
                     icon: Icons.arrow_forward_rounded,
                     onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Próximo paso: registro de usuario.',
-                          ),
-                        ),
-                      );
+                      context.go(AppRoutes.register);
                     },
                   ),
                   const SizedBox(height: AppSpacing.sm),
@@ -71,13 +67,7 @@ class WelcomeScreen extends StatelessWidget {
                     label: 'Ya tengo una cuenta',
                     variant: AppButtonVariant.secondary,
                     onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Próximo paso: inicio de sesión.',
-                          ),
-                        ),
-                      );
+                      context.go(AppRoutes.login);
                     },
                   ),
                 ],

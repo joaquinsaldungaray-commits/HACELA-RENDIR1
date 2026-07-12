@@ -8,11 +8,13 @@ class PositionCard extends StatelessWidget {
   const PositionCard({
     required this.position,
     required this.portfolioTotal,
+    required this.onDelete,
     super.key,
   });
 
   final PortfolioPosition position;
   final double portfolioTotal;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -101,6 +103,40 @@ class PositionCard extends StatelessWidget {
                   ),
                 ],
               ),
+              const SizedBox(width: AppSpacing.xs),
+              PopupMenuButton<String>(
+                tooltip: 'Acciones',
+                icon: const Icon(
+                  Icons.more_vert_rounded,
+                  color: AppColors.textSecondary,
+                ),
+                color: AppColors.surfaceAlt,
+                onSelected: (value) {
+                  if (value == 'delete') {
+                    onDelete();
+                  }
+                },
+                itemBuilder: (context) => const [
+                  PopupMenuItem<String>(
+                    value: 'delete',
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.delete_outline_rounded,
+                          color: AppColors.danger,
+                        ),
+                        SizedBox(width: AppSpacing.sm),
+                        Text(
+                          'Eliminar posición',
+                          style: TextStyle(
+                            color: AppColors.danger,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
           const SizedBox(height: AppSpacing.md),
@@ -120,6 +156,12 @@ class PositionCard extends StatelessWidget {
                 child: _PositionDetail(
                   label: 'Precio promedio',
                   value: 'USD ${position.averagePrice.toStringAsFixed(2)}',
+                ),
+              ),
+              Expanded(
+                child: _PositionDetail(
+                  label: 'Precio actual',
+                  value: 'USD ${position.currentPrice.toStringAsFixed(2)}',
                 ),
               ),
               Expanded(

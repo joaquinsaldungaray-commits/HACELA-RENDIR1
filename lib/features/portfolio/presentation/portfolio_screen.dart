@@ -6,16 +6,132 @@ import 'package:hacela_rendir/core/design_system/app_typography.dart';
 import 'package:hacela_rendir/core/finance/calculations/portfolio_calculator.dart';
 import 'package:hacela_rendir/core/theme/app_theme.dart';
 import 'package:hacela_rendir/features/portfolio/data/demo_portfolio_data.dart';
+import 'package:hacela_rendir/features/portfolio/data/portfolio_repository.dart';
+import 'package:hacela_rendir/features/portfolio/domain/portfolio_position.dart';
+import 'package:hacela_rendir/features/portfolio/presentation/widgets/add_position_dialog.dart';
 import 'package:hacela_rendir/features/portfolio/presentation/widgets/position_card.dart';
 
-class PortfolioScreen extends StatelessWidget {
+class PortfolioScreen extends StatefulWidget {
   const PortfolioScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final metrics = PortfolioCalculator.calculate(
-      demoPortfolioPositions,
+  State<PortfolioScreen> createState() => _PortfolioScreenState();
+}
+
+class _PortfolioScreenState extends State<PortfolioScreen> {
+  final PortfolioRepository repository = PortfolioRepository();
+
+  List<PortfolioPosition> positions = [];
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    loadPositions();
+  }
+
+  Future<void> loadPositions() async {
+    final savedPositions = await repository.loadPositions();
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      positions = savedPositions.isEmpty
+          ? List<PortfolioPosition>.from(demoPortfolioPositions)
+          : savedPositions;
+
+      isLoading = false;
+    });
+  }
+
+  Future<void> addPosition() async {
+    final newPosition = await showDialog<PortfolioPosition>(
+      context: context,
+      builder: (context) {
+        return const AddPositionDialog();
+      },
     );
+
+    if (newPosition == null) {
+      return;
+    }
+
+    setState(() {
+      positions.add(newPosition);
+    });
+
+    await repository.savePositions(positions);
+  }
+
+  Future<void> deletePosition(
+    PortfolioPosition position,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Eliminar posición'),
+          content: Text(
+            '¿Querés eliminar ${position.ticker} de tu cartera?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(false);
+              },
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(true);
+              },
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.danger,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Eliminar'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) {
+      return;
+    }
+
+    setState(() {
+      positions.remove(position);
+    });
+
+    await repository.savePositions(positions);
+
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          '${position.ticker} fue eliminado de la cartera.',
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    final metrics = PortfolioCalculator.calculate(positions);
 
     final resultColor = metrics.isPositive
         ? AppColors.primary
@@ -37,6 +153,24 @@ class PortfolioScreen extends StatelessWidget {
           style: TextStyle(
             fontWeight: FontWeight.w800,
           ),
+        ),
+        actions: [
+          IconButton(
+            tooltip: 'Agregar posición',
+            onPressed: addPosition,
+            icon: const Icon(
+              Icons.add_rounded,
+            ),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: addPosition,
+        icon: const Icon(
+          Icons.add_rounded,
+        ),
+        label: const Text(
+          'Agregar posición',
         ),
       ),
       body: SafeArea(
@@ -135,20 +269,39 @@ class PortfolioScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: AppSpacing.xl),
-                  Text(
-                    'Posiciones',
-                    style: AppTypography.headlineMedium.copyWith(
-                      color: AppColors.textPrimary,
-                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Posiciones',
+                          style: AppTypography.headlineMedium.copyWith(
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        '${positions.length} activos',
+                        style: AppTypography.bodyMedium.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: AppSpacing.md),
-                  for (final position in demoPortfolioPositions) ...[
-                    PositionCard(
-                      position: position,
-                      portfolioTotal: metrics.marketValue,
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                  ],
+                  if (positions.isEmpty)
+                    const _EmptyPortfolio()
+                  else
+                    for (final position in positions) ...[
+                      PositionCard(
+                        position: position,
+                        portfolioTotal: metrics.marketValue,
+                        onDelete: () {
+                          deletePosition(position);
+                        },
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                    ],
+                  const SizedBox(height: AppSpacing.xxxl),
                 ],
               ),
             ),
@@ -193,6 +346,49 @@ class _SummaryMetric extends StatelessWidget {
             value,
             style: AppTypography.titleMedium.copyWith(
               color: AppColors.textPrimary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptyPortfolio extends StatelessWidget {
+  const _EmptyPortfolio();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: AppColors.border,
+        ),
+      ),
+      child: Column(
+        children: [
+          const Icon(
+            Icons.account_balance_wallet_outlined,
+            size: 48,
+            color: AppColors.textSecondary,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            'Todavía no hay posiciones',
+            style: AppTypography.titleLarge.copyWith(
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            'Agregá tu primera inversión para comenzar.',
+            textAlign: TextAlign.center,
+            style: AppTypography.bodyMedium.copyWith(
+              color: AppColors.textSecondary,
             ),
           ),
         ],

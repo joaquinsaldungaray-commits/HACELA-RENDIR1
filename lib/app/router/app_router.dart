@@ -1,10 +1,11 @@
 import 'package:go_router/go_router.dart';
-
-import 'package:hacela_rendir/features/onboarding/welcome_screen.dart';
 import 'package:hacela_rendir/features/auth/login/login_screen.dart';
 import 'package:hacela_rendir/features/auth/register/register_screen.dart';
 import 'package:hacela_rendir/features/dashboard/dashboard_screen.dart';
+import 'package:hacela_rendir/features/onboarding/welcome_screen.dart';
+import 'package:hacela_rendir/features/portfolio/domain/portfolio_position.dart';
 import 'package:hacela_rendir/features/portfolio/presentation/portfolio_screen.dart';
+import 'package:hacela_rendir/features/portfolio/presentation/position_detail_screen.dart';
 
 import 'app_routes.dart';
 
@@ -30,6 +31,16 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: AppRoutes.portfolio,
       builder: (context, state) => const PortfolioScreen(),
+    ),
+    GoRoute(
+      path: AppRoutes.positionDetail,
+      builder: (context, state) {
+        final position = state.extra as PortfolioPosition;
+
+        return PositionDetailScreen(
+          position: position,
+        );
+      },
     ),
   ],
 );

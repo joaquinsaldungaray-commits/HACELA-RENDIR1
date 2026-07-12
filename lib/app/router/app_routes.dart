@@ -4,4 +4,5 @@ abstract final class AppRoutes {
   static const register = '/register';
   static const dashboard = '/dashboard';
   static const portfolio = '/portfolio';
+  static const positionDetail = '/position-detail';
 }

@@ -181,6 +181,15 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
     );
   }
 
+  void openPositionDetail(
+    PortfolioPosition position,
+  ) {
+    context.push(
+      AppRoutes.positionDetail,
+      extra: position,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
@@ -379,6 +388,9 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                       PositionCard(
                         position: position,
                         portfolioTotal: metrics.marketValue,
+                        onTap: () {
+                          openPositionDetail(position);
+                        },
                         onEdit: () {
                           editPosition(position);
                         },

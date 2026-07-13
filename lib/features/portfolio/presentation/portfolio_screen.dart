@@ -227,6 +227,15 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
         ),
         actions: [
           IconButton(
+            tooltip: 'Movimientos',
+            onPressed: () {
+              context.push(AppRoutes.transactions);
+            },
+            icon: const Icon(
+              Icons.receipt_long_outlined,
+            ),
+          ),
+          IconButton(
             tooltip: 'Agregar posición',
             onPressed: addPosition,
             icon: const Icon(

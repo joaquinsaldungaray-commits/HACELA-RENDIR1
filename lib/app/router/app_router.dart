@@ -6,6 +6,7 @@ import 'package:hacela_rendir/features/onboarding/welcome_screen.dart';
 import 'package:hacela_rendir/features/portfolio/domain/portfolio_position.dart';
 import 'package:hacela_rendir/features/portfolio/presentation/portfolio_screen.dart';
 import 'package:hacela_rendir/features/portfolio/presentation/position_detail_screen.dart';
+import 'package:hacela_rendir/features/transactions/presentation/transactions_screen.dart';
 
 import 'app_routes.dart';
 
@@ -41,6 +42,10 @@ final GoRouter appRouter = GoRouter(
           position: position,
         );
       },
+    ),
+    GoRoute(
+      path: AppRoutes.transactions,
+      builder: (context, state) => const TransactionsScreen(),
     ),
   ],
 );

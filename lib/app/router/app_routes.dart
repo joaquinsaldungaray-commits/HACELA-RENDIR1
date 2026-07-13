@@ -6,4 +6,5 @@ abstract final class AppRoutes {
   static const portfolio = '/portfolio';
   static const positionDetail = '/position-detail';
   static const transactions = '/transactions';
+  static const performance = '/performance';
 }

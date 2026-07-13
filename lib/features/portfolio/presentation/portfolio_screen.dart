@@ -5,6 +5,7 @@ import 'package:hacela_rendir/core/design_system/app_spacing.dart';
 import 'package:hacela_rendir/core/design_system/app_typography.dart';
 import 'package:hacela_rendir/core/finance/engine/financial_engine.dart';
 import 'package:hacela_rendir/core/theme/app_theme.dart';
+import 'package:hacela_rendir/features/performance/services/performance_snapshot_service.dart';
 import 'package:hacela_rendir/features/portfolio/domain/portfolio_position.dart';
 import 'package:hacela_rendir/features/portfolio/presentation/widgets/portfolio_distribution_section.dart';
 import 'package:hacela_rendir/features/portfolio/presentation/widgets/position_card.dart';
@@ -27,6 +28,9 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
   final TransactionRepository transactionRepository =
       TransactionRepository();
 
+  final PerformanceSnapshotService performanceSnapshotService =
+      PerformanceSnapshotService();
+
   List<PortfolioPosition> positions = [];
   List<PortfolioTransaction> transactions = [];
 
@@ -46,6 +50,11 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
 
       final synchronizedPositions =
           await portfolioSyncService.syncFromTransactions();
+
+      await capturePerformanceSnapshot(
+        transactions: loadedTransactions,
+        positions: synchronizedPositions,
+      );
 
       if (!mounted) {
         return;
@@ -70,6 +79,20 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
         isError: true,
       );
     }
+  }
+
+  Future<void> capturePerformanceSnapshot({
+    required List<PortfolioTransaction> transactions,
+    required List<PortfolioPosition> positions,
+  }) async {
+    if (transactions.isEmpty && positions.isEmpty) {
+      return;
+    }
+
+    await performanceSnapshotService.capture(
+      transactions: transactions,
+      positions: positions,
+    );
   }
 
   Future<void> registerPurchase() async {
@@ -109,6 +132,11 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
 
       final synchronizedPositions =
           await portfolioSyncService.syncFromTransactions();
+
+      await capturePerformanceSnapshot(
+        transactions: updatedTransactions,
+        positions: synchronizedPositions,
+      );
 
       if (!mounted) {
         return;
@@ -151,6 +179,12 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
     await loadPortfolio();
   }
 
+  void openPerformance() {
+    context.push(
+      AppRoutes.performance,
+    );
+  }
+
   void openPositionDetail(
     PortfolioPosition position,
   ) {
@@ -173,6 +207,24 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
     );
   }
 
+  double largestPositionWeight(
+    double marketValue,
+  ) {
+    if (positions.isEmpty || marketValue == 0) {
+      return 0;
+    }
+
+    var largestValue = 0.0;
+
+    for (final position in positions) {
+      if (position.currentValue > largestValue) {
+        largestValue = position.currentValue;
+      }
+    }
+
+    return largestValue / marketValue * 100;
+  }
+
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
@@ -188,7 +240,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
       positions: positions,
     );
 
-    final resultColor = snapshot.isPositive
+    final resultColor = snapshot.unrealizedProfit >= 0
         ? AppColors.primary
         : AppColors.danger;
 
@@ -210,6 +262,15 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
           ),
         ),
         actions: [
+          IconButton(
+            tooltip: 'Performance',
+            onPressed: isSaving
+                ? null
+                : openPerformance,
+            icon: const Icon(
+              Icons.insights_outlined,
+            ),
+          ),
           IconButton(
             tooltip: 'Movimientos',
             onPressed: isSaving
@@ -288,13 +349,16 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                       profitLoss:
                           snapshot.unrealizedProfit,
                       returnPercent:
-                          snapshot.returnPercent,
+                          snapshot.investedCapital == 0
+                              ? 0
+                              : snapshot.unrealizedProfit /
+                                  snapshot.investedCapital *
+                                  100,
                       positionsCount:
                           snapshot.positionsCount,
                       resultColor: resultColor,
                       largestPositionWeight:
-                          _largestPositionWeight(
-                        positions,
+                          largestPositionWeight(
                         snapshot.marketValue,
                       ),
                     ),
@@ -368,25 +432,6 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
         ),
       ),
     );
-  }
-
-  double _largestPositionWeight(
-    List<PortfolioPosition> positions,
-    double marketValue,
-  ) {
-    if (positions.isEmpty || marketValue == 0) {
-      return 0;
-    }
-
-    var largestValue = 0.0;
-
-    for (final position in positions) {
-      if (position.currentValue > largestValue) {
-        largestValue = position.currentValue;
-      }
-    }
-
-    return largestValue / marketValue * 100;
   }
 }
 

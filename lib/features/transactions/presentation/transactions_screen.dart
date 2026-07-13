@@ -4,11 +4,13 @@ import 'package:hacela_rendir/app/router/app_routes.dart';
 import 'package:hacela_rendir/core/design_system/app_spacing.dart';
 import 'package:hacela_rendir/core/design_system/app_typography.dart';
 import 'package:hacela_rendir/core/theme/app_theme.dart';
+import 'package:hacela_rendir/features/portfolio/domain/portfolio_position.dart';
 import 'package:hacela_rendir/features/portfolio/services/portfolio_sync_service.dart';
 import 'package:hacela_rendir/features/transactions/data/transaction_repository.dart';
 import 'package:hacela_rendir/features/transactions/domain/portfolio_transaction.dart';
 import 'package:hacela_rendir/features/transactions/presentation/widgets/add_transaction_dialog.dart';
 import 'package:hacela_rendir/features/transactions/presentation/widgets/transaction_card.dart';
+import 'package:hacela_rendir/features/transactions/services/investment_result_calculator.dart';
 import 'package:hacela_rendir/features/transactions/services/transaction_calculator.dart';
 
 class TransactionsScreen extends StatefulWidget {
@@ -26,6 +28,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       PortfolioSyncService();
 
   List<PortfolioTransaction> transactions = [];
+  List<PortfolioPosition> openPositions = [];
 
   bool isLoading = true;
   bool isSynchronizing = false;
@@ -41,7 +44,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       final loadedTransactions =
           await repository.loadTransactions();
 
-      await portfolioSyncService.syncFromTransactions();
+      final calculatedPositions =
+          await portfolioSyncService.syncFromTransactions();
 
       if (!mounted) {
         return;
@@ -49,6 +53,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 
       setState(() {
         transactions = loadedTransactions;
+        openPositions = calculatedPositions;
         isLoading = false;
       });
     } catch (error) {
@@ -66,7 +71,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     }
   }
 
-  Future<void> synchronizePortfolio() async {
+  Future<List<PortfolioPosition>> synchronizePortfolio() async {
     if (mounted) {
       setState(() {
         isSynchronizing = true;
@@ -74,7 +79,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     }
 
     try {
-      await portfolioSyncService.syncFromTransactions();
+      return await portfolioSyncService.syncFromTransactions();
     } finally {
       if (mounted) {
         setState(() {
@@ -107,7 +112,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         updatedTransactions,
       );
 
-      await synchronizePortfolio();
+      final updatedPositions =
+          await synchronizePortfolio();
 
       if (!mounted) {
         return;
@@ -115,6 +121,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 
       setState(() {
         transactions = updatedTransactions;
+        openPositions = updatedPositions;
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -190,7 +197,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         updatedTransactions,
       );
 
-      await synchronizePortfolio();
+      final updatedPositions =
+          await synchronizePortfolio();
 
       if (!mounted) {
         return;
@@ -198,6 +206,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 
       setState(() {
         transactions = updatedTransactions;
+        openPositions = updatedPositions;
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -252,8 +261,15 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       );
     }
 
-    final summary = TransactionCalculator.calculate(
+    final transactionSummary =
+        TransactionCalculator.calculate(
       transactions,
+    );
+
+    final investmentResult =
+        InvestmentResultCalculator.calculate(
+      transactions: transactions,
+      openPositions: openPositions,
     );
 
     return Scaffold(
@@ -327,9 +343,62 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Resumen',
+                    'Resultado de inversiones',
                     style:
                         AppTypography.headlineLarge.copyWith(
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(
+                    height: AppSpacing.md,
+                  ),
+                  _TotalResultCard(
+                    totalResult:
+                        investmentResult.totalResult,
+                  ),
+                  const SizedBox(
+                    height: AppSpacing.md,
+                  ),
+                  GridView.count(
+                    crossAxisCount: 2,
+                    shrinkWrap: true,
+                    physics:
+                        const NeverScrollableScrollPhysics(),
+                    crossAxisSpacing: AppSpacing.sm,
+                    mainAxisSpacing: AppSpacing.sm,
+                    childAspectRatio: 1.8,
+                    children: [
+                      _ResultMetricCard(
+                        label: 'Resultado realizado',
+                        value:
+                            investmentResult.realizedProfit,
+                        icon: Icons.task_alt_rounded,
+                      ),
+                      _ResultMetricCard(
+                        label: 'Resultado no realizado',
+                        value:
+                            investmentResult.unrealizedProfit,
+                        icon: Icons.show_chart_rounded,
+                      ),
+                      _ResultMetricCard(
+                        label: 'Dividendos',
+                        value: investmentResult.dividends,
+                        icon: Icons.payments_outlined,
+                      ),
+                      _ResultMetricCard(
+                        label: 'Comisiones',
+                        value: -investmentResult.fees,
+                        icon: Icons.receipt_long_outlined,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(
+                    height: AppSpacing.xl,
+                  ),
+                  Text(
+                    'Actividad de la cuenta',
+                    style:
+                        AppTypography.headlineMedium.copyWith(
                       color: AppColors.textPrimary,
                     ),
                   ),
@@ -345,36 +414,28 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     mainAxisSpacing: AppSpacing.sm,
                     childAspectRatio: 1.8,
                     children: [
-                      _SummaryCard(
+                      _ActivityMetricCard(
                         label: 'Compras',
-                        value: summary.totalPurchases,
+                        value:
+                            transactionSummary.totalPurchases,
                         icon:
                             Icons.add_shopping_cart_rounded,
                       ),
-                      _SummaryCard(
+                      _ActivityMetricCard(
                         label: 'Ventas',
-                        value: summary.totalSales,
+                        value: transactionSummary.totalSales,
                         icon: Icons.sell_outlined,
                       ),
-                      _SummaryCard(
-                        label: 'Dividendos',
-                        value: summary.totalDividends,
-                        icon: Icons.payments_outlined,
-                      ),
-                      _SummaryCard(
-                        label: 'Comisiones',
-                        value: summary.totalFees,
-                        icon:
-                            Icons.receipt_long_outlined,
-                      ),
-                      _SummaryCard(
+                      _ActivityMetricCard(
                         label: 'Depósitos',
-                        value: summary.totalDeposits,
+                        value:
+                            transactionSummary.totalDeposits,
                         icon: Icons.south_west_rounded,
                       ),
-                      _SummaryCard(
+                      _ActivityMetricCard(
                         label: 'Retiros',
-                        value: summary.totalWithdrawals,
+                        value:
+                            transactionSummary.totalWithdrawals,
                         icon: Icons.north_east_rounded,
                       ),
                     ],
@@ -396,7 +457,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                         ),
                       ),
                       Text(
-                        '${summary.transactionCount} movimientos',
+                        '${transactionSummary.transactionCount} movimientos',
                         style: AppTypography
                             .bodyMedium
                             .copyWith(
@@ -439,8 +500,135 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   }
 }
 
-class _SummaryCard extends StatelessWidget {
-  const _SummaryCard({
+class _TotalResultCard extends StatelessWidget {
+  const _TotalResultCard({
+    required this.totalResult,
+  });
+
+  final double totalResult;
+
+  @override
+  Widget build(BuildContext context) {
+    final isPositive = totalResult >= 0;
+
+    final resultColor =
+        isPositive ? AppColors.primary : AppColors.danger;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(
+        AppSpacing.lg,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(
+          20,
+        ),
+        border: Border.all(
+          color: resultColor.withValues(
+            alpha: 0.35,
+          ),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Resultado total',
+            style: AppTypography.bodyMedium.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(
+            height: AppSpacing.xs,
+          ),
+          Text(
+            '${isPositive ? '+' : ''}'
+            'USD ${totalResult.toStringAsFixed(2)}',
+            style:
+                AppTypography.displayMedium.copyWith(
+              color: resultColor,
+            ),
+          ),
+          const SizedBox(
+            height: AppSpacing.sm,
+          ),
+          Text(
+            'Incluye resultados realizados, '
+            'posiciones abiertas y dividendos.',
+            style: AppTypography.bodyMedium.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ResultMetricCard extends StatelessWidget {
+  const _ResultMetricCard({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  final String label;
+  final double value;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final valueColor =
+        value >= 0 ? AppColors.primary : AppColors.danger;
+
+    return Container(
+      padding: const EdgeInsets.all(
+        AppSpacing.md,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(
+          16,
+        ),
+        border: Border.all(
+          color: AppColors.border,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: [
+          Icon(
+            icon,
+            color: valueColor,
+          ),
+          const Spacer(),
+          Text(
+            label,
+            style: AppTypography.bodyMedium.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(
+            height: AppSpacing.xxs,
+          ),
+          Text(
+            '${value >= 0 ? '+' : ''}'
+            'USD ${value.toStringAsFixed(2)}',
+            style: AppTypography.titleLarge.copyWith(
+              color: valueColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActivityMetricCard extends StatelessWidget {
+  const _ActivityMetricCard({
     required this.label,
     required this.value,
     required this.icon,

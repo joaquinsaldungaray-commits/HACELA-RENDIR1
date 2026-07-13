@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hacela_rendir/core/design_system/app_button.dart';
 import 'package:hacela_rendir/core/design_system/app_spacing.dart';
+import 'package:hacela_rendir/features/assets/services/asset_lookup_service.dart';
 import 'package:hacela_rendir/features/transactions/domain/portfolio_transaction.dart';
 
 class AddTransactionDialog extends StatefulWidget {
@@ -14,6 +15,9 @@ class AddTransactionDialog extends StatefulWidget {
 class _AddTransactionDialogState extends State<AddTransactionDialog> {
   final formKey = GlobalKey<FormState>();
 
+  final AssetLookupService assetLookupService =
+      const AssetLookupService();
+
   TransactionType selectedType = TransactionType.buy;
 
   final tickerController = TextEditingController();
@@ -23,6 +27,9 @@ class _AddTransactionDialogState extends State<AddTransactionDialog> {
   final amountController = TextEditingController();
   final feeController = TextEditingController(text: '0');
   final notesController = TextEditingController();
+
+  bool isLookingUpAsset = false;
+  String? assetLookupMessage;
 
   @override
   void dispose() {
@@ -69,6 +76,48 @@ class _AddTransactionDialogState extends State<AddTransactionDialog> {
     };
   }
 
+  Future<void> lookupAsset() async {
+    final symbol = tickerController.text.trim().toUpperCase();
+
+    if (symbol.isEmpty) {
+      setState(() {
+        assetLookupMessage = 'Ingresá un ticker para buscar.';
+      });
+
+      return;
+    }
+
+    setState(() {
+      isLookingUpAsset = true;
+      assetLookupMessage = null;
+    });
+
+    final asset = await assetLookupService.findBySymbol(
+      symbol,
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      isLookingUpAsset = false;
+
+      if (asset == null) {
+        assetLookupMessage =
+            'No encontramos ese activo en la base local.';
+        return;
+      }
+
+      tickerController.text = asset.symbol;
+      nameController.text = asset.name;
+
+      assetLookupMessage =
+          '${asset.exchange} · ${asset.country} · '
+          '${asset.currency} · ${asset.sector}';
+    });
+  }
+
   void submit() {
     if (!(formKey.currentState?.validate() ?? false)) {
       return;
@@ -108,7 +157,7 @@ class _AddTransactionDialogState extends State<AddTransactionDialog> {
       title: const Text('Registrar movimiento'),
       content: SingleChildScrollView(
         child: SizedBox(
-          width: 440,
+          width: 460,
           child: Form(
             key: formKey,
             child: Column(
@@ -136,25 +185,68 @@ class _AddTransactionDialogState extends State<AddTransactionDialog> {
 
                     setState(() {
                       selectedType = value;
+                      assetLookupMessage = null;
                     });
                   },
                 ),
                 const SizedBox(height: AppSpacing.md),
                 if (usesAssetFields) ...[
-                  TextFormField(
-                    controller: tickerController,
-                    textCapitalization: TextCapitalization.characters,
-                    decoration: const InputDecoration(
-                      labelText: 'Ticker',
-                    ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Ingresá el ticker.';
-                      }
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: tickerController,
+                          textCapitalization:
+                              TextCapitalization.characters,
+                          decoration: const InputDecoration(
+                            labelText: 'Ticker',
+                            hintText: 'Ejemplo: AAPL',
+                          ),
+                          validator: (value) {
+                            if (value == null ||
+                                value.trim().isEmpty) {
+                              return 'Ingresá el ticker.';
+                            }
 
-                      return null;
-                    },
+                            return null;
+                          },
+                          onFieldSubmitted: (_) {
+                            lookupAsset();
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      SizedBox(
+                        width: 110,
+                        height: 56,
+                        child: OutlinedButton(
+                          onPressed: isLookingUpAsset
+                              ? null
+                              : lookupAsset,
+                          child: isLookingUpAsset
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Text('Buscar'),
+                        ),
+                      ),
+                    ],
                   ),
+                  if (assetLookupMessage != null) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        assetLookupMessage!,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: AppSpacing.md),
                   TextFormField(
                     controller: nameController,

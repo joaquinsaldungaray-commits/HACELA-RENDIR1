@@ -9,16 +9,12 @@ class PositionCard extends StatelessWidget {
     required this.position,
     required this.portfolioTotal,
     required this.onTap,
-    required this.onEdit,
-    required this.onDelete,
     super.key,
   });
 
   final PortfolioPosition position;
   final double portfolioTotal;
   final VoidCallback onTap;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
 
   String formatQuantity(double value) {
     if (value == value.truncateToDouble()) {
@@ -123,57 +119,10 @@ class PositionCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(width: AppSpacing.xs),
-                  PopupMenuButton<String>(
-                    tooltip: 'Acciones',
-                    color: AppColors.surfaceAlt,
-                    icon: const Icon(
-                      Icons.more_vert_rounded,
-                      color: AppColors.textSecondary,
-                    ),
-                    onSelected: (value) {
-                      if (value == 'edit') {
-                        onEdit();
-                      }
-
-                      if (value == 'delete') {
-                        onDelete();
-                      }
-                    },
-                    itemBuilder: (context) => const [
-                      PopupMenuItem<String>(
-                        value: 'edit',
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.edit_outlined,
-                              color: AppColors.textPrimary,
-                            ),
-                            SizedBox(width: AppSpacing.sm),
-                            Text('Editar posición'),
-                          ],
-                        ),
-                      ),
-                      PopupMenuDivider(),
-                      PopupMenuItem<String>(
-                        value: 'delete',
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.delete_outline_rounded,
-                              color: AppColors.danger,
-                            ),
-                            SizedBox(width: AppSpacing.sm),
-                            Text(
-                              'Eliminar posición',
-                              style: TextStyle(
-                                color: AppColors.danger,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                  const SizedBox(width: AppSpacing.sm),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppColors.textSecondary,
                   ),
                 ],
               ),

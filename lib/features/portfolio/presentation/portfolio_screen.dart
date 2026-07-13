@@ -3,14 +3,15 @@ import 'package:go_router/go_router.dart';
 import 'package:hacela_rendir/app/router/app_routes.dart';
 import 'package:hacela_rendir/core/design_system/app_spacing.dart';
 import 'package:hacela_rendir/core/design_system/app_typography.dart';
-import 'package:hacela_rendir/core/finance/calculations/portfolio_calculator.dart';
+import 'package:hacela_rendir/core/finance/engine/financial_engine.dart';
 import 'package:hacela_rendir/core/theme/app_theme.dart';
-import 'package:hacela_rendir/features/portfolio/data/demo_portfolio_data.dart';
-import 'package:hacela_rendir/features/portfolio/data/portfolio_repository.dart';
 import 'package:hacela_rendir/features/portfolio/domain/portfolio_position.dart';
-import 'package:hacela_rendir/features/portfolio/presentation/widgets/add_position_dialog.dart';
-import 'package:hacela_rendir/features/portfolio/presentation/widgets/edit_position_dialog.dart';
+import 'package:hacela_rendir/features/portfolio/presentation/widgets/portfolio_distribution_section.dart';
 import 'package:hacela_rendir/features/portfolio/presentation/widgets/position_card.dart';
+import 'package:hacela_rendir/features/portfolio/services/portfolio_sync_service.dart';
+import 'package:hacela_rendir/features/transactions/data/transaction_repository.dart';
+import 'package:hacela_rendir/features/transactions/domain/portfolio_transaction.dart';
+import 'package:hacela_rendir/features/transactions/presentation/widgets/add_transaction_dialog.dart';
 
 class PortfolioScreen extends StatefulWidget {
   const PortfolioScreen({super.key});
@@ -20,165 +21,134 @@ class PortfolioScreen extends StatefulWidget {
 }
 
 class _PortfolioScreenState extends State<PortfolioScreen> {
-  final PortfolioRepository repository = PortfolioRepository();
+  final PortfolioSyncService portfolioSyncService =
+      PortfolioSyncService();
+
+  final TransactionRepository transactionRepository =
+      TransactionRepository();
 
   List<PortfolioPosition> positions = [];
+  List<PortfolioTransaction> transactions = [];
+
   bool isLoading = true;
+  bool isSaving = false;
 
   @override
   void initState() {
     super.initState();
-    loadPositions();
+    loadPortfolio();
   }
 
-  Future<void> loadPositions() async {
-    final savedPositions = await repository.loadPositions();
+  Future<void> loadPortfolio() async {
+    try {
+      final loadedTransactions =
+          await transactionRepository.loadTransactions();
 
-    if (!mounted) {
-      return;
+      final synchronizedPositions =
+          await portfolioSyncService.syncFromTransactions();
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        transactions = loadedTransactions;
+        positions = synchronizedPositions;
+        isLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        isLoading = false;
+      });
+
+      showMessage(
+        'No se pudo cargar la cartera.',
+        isError: true,
+      );
     }
-
-    setState(() {
-      positions = savedPositions.isEmpty
-          ? List<PortfolioPosition>.from(demoPortfolioPositions)
-          : savedPositions;
-
-      isLoading = false;
-    });
   }
 
-  Future<void> addPosition() async {
-    final newPosition = await showDialog<PortfolioPosition>(
+  Future<void> registerPurchase() async {
+    final transaction =
+        await showDialog<PortfolioTransaction>(
       context: context,
       builder: (dialogContext) {
-        return const AddPositionDialog();
+        return const AddTransactionDialog();
       },
     );
 
-    if (newPosition == null || !mounted) {
+    if (transaction == null || !mounted) {
+      return;
+    }
+
+    if (transaction.type != TransactionType.buy) {
+      showMessage(
+        'Desde este botón debés registrar una compra.',
+        isError: true,
+      );
       return;
     }
 
     setState(() {
-      positions.add(newPosition);
+      isSaving = true;
     });
 
-    await repository.savePositions(positions);
+    try {
+      final updatedTransactions = [
+        transaction,
+        ...transactions,
+      ];
 
-    if (!mounted) {
-      return;
+      await transactionRepository.saveTransactions(
+        updatedTransactions,
+      );
+
+      final synchronizedPositions =
+          await portfolioSyncService.syncFromTransactions();
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        transactions = updatedTransactions;
+        positions = synchronizedPositions;
+        isSaving = false;
+      });
+
+      showMessage(
+        '${transaction.ticker} fue incorporado mediante una compra.',
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        isSaving = false;
+      });
+
+      showMessage(
+        'No se pudo registrar la compra.',
+        isError: true,
+      );
     }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          '${newPosition.ticker} fue agregado a la cartera.',
-        ),
-      ),
-    );
   }
 
-  Future<void> editPosition(
-    PortfolioPosition position,
-  ) async {
-    final updatedPosition = await showDialog<PortfolioPosition>(
-      context: context,
-      builder: (dialogContext) {
-        return EditPositionDialog(
-          position: position,
-        );
-      },
+  Future<void> openTransactions() async {
+    await context.push(
+      AppRoutes.transactions,
     );
-
-    if (updatedPosition == null || !mounted) {
-      return;
-    }
-
-    final positionIndex = positions.indexOf(position);
-
-    if (positionIndex == -1) {
-      return;
-    }
-
-    setState(() {
-      positions[positionIndex] = updatedPosition;
-    });
-
-    await repository.savePositions(positions);
 
     if (!mounted) {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          '${updatedPosition.ticker} fue actualizado.',
-        ),
-      ),
-    );
-  }
-
-  Future<void> deletePosition(
-    PortfolioPosition position,
-  ) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text(
-            'Eliminar posición',
-          ),
-          content: Text(
-            '¿Querés eliminar ${position.ticker} de tu cartera?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop(false);
-              },
-              child: const Text(
-                'Cancelar',
-              ),
-            ),
-            FilledButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop(true);
-              },
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.danger,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text(
-                'Eliminar',
-              ),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirmed != true || !mounted) {
-      return;
-    }
-
-    setState(() {
-      positions.remove(position);
-    });
-
-    await repository.savePositions(positions);
-
-    if (!mounted) {
-      return;
-    }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          '${position.ticker} fue eliminado de la cartera.',
-        ),
-      ),
-    );
+    await loadPortfolio();
   }
 
   void openPositionDetail(
@@ -187,6 +157,19 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
     context.push(
       AppRoutes.positionDetail,
       extra: position,
+    );
+  }
+
+  void showMessage(
+    String message, {
+    bool isError = false,
+  }) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor:
+            isError ? AppColors.danger : null,
+      ),
     );
   }
 
@@ -200,11 +183,12 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
       );
     }
 
-    final metrics = PortfolioCalculator.calculate(
-      positions,
+    final snapshot = FinancialEngine.calculateFromData(
+      transactions: transactions,
+      positions: positions,
     );
 
-    final resultColor = metrics.isPositive
+    final resultColor = snapshot.isPositive
         ? AppColors.primary
         : AppColors.danger;
 
@@ -228,197 +212,298 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
         actions: [
           IconButton(
             tooltip: 'Movimientos',
-            onPressed: () {
-              context.push(AppRoutes.transactions);
-            },
+            onPressed: isSaving
+                ? null
+                : openTransactions,
             icon: const Icon(
               Icons.receipt_long_outlined,
             ),
           ),
           IconButton(
-            tooltip: 'Agregar posición',
-            onPressed: addPosition,
+            tooltip: 'Registrar compra',
+            onPressed: isSaving
+                ? null
+                : registerPurchase,
             icon: const Icon(
-              Icons.add_rounded,
+              Icons.add_shopping_cart_rounded,
             ),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: addPosition,
-        icon: const Icon(
-          Icons.add_rounded,
-        ),
-        label: const Text(
-          'Agregar posición',
+      floatingActionButton:
+          FloatingActionButton.extended(
+        onPressed: isSaving
+            ? null
+            : registerPurchase,
+        icon: isSaving
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                ),
+              )
+            : const Icon(
+                Icons.add_shopping_cart_rounded,
+              ),
+        label: Text(
+          isSaving
+              ? 'Guardando...'
+              : 'Registrar compra',
         ),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(
-            AppSpacing.lg,
-          ),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: 900,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Resumen',
-                    style: AppTypography.headlineLarge.copyWith(
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(
-                    height: AppSpacing.md,
-                  ),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(
-                      AppSpacing.lg,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(
-                        20,
-                      ),
-                      border: Border.all(
-                        color: AppColors.border,
+        child: RefreshIndicator(
+          onRefresh: loadPortfolio,
+          child: SingleChildScrollView(
+            physics:
+                const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(
+              AppSpacing.lg,
+            ),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: 900,
+                ),
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Resumen',
+                      style: AppTypography
+                          .headlineLarge
+                          .copyWith(
+                        color: AppColors.textPrimary,
                       ),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    const SizedBox(
+                      height: AppSpacing.md,
+                    ),
+                    _PortfolioSummaryCard(
+                      marketValue: snapshot.marketValue,
+                      investedCapital:
+                          snapshot.investedCapital,
+                      profitLoss:
+                          snapshot.unrealizedProfit,
+                      returnPercent:
+                          snapshot.returnPercent,
+                      positionsCount:
+                          snapshot.positionsCount,
+                      resultColor: resultColor,
+                      largestPositionWeight:
+                          _largestPositionWeight(
+                        positions,
+                        snapshot.marketValue,
+                      ),
+                    ),
+                    const SizedBox(
+                      height: AppSpacing.xl,
+                    ),
+                    PortfolioDistributionSection(
+                      distribution:
+                          snapshot.distribution,
+                    ),
+                    const SizedBox(
+                      height: AppSpacing.xl,
+                    ),
+                    Row(
                       children: [
-                        Text(
-                          'Valor de mercado',
-                          style: AppTypography.bodyMedium.copyWith(
-                            color: AppColors.textSecondary,
+                        Expanded(
+                          child: Text(
+                            'Posiciones',
+                            style: AppTypography
+                                .headlineMedium
+                                .copyWith(
+                              color:
+                                  AppColors.textPrimary,
+                            ),
                           ),
                         ),
-                        const SizedBox(
-                          height: AppSpacing.xs,
-                        ),
                         Text(
-                          'USD ${metrics.marketValue.toStringAsFixed(2)}',
-                          style: AppTypography.displayMedium.copyWith(
-                            color: AppColors.textPrimary,
+                          '${positions.length} activos',
+                          style: AppTypography
+                              .bodyMedium
+                              .copyWith(
+                            color:
+                                AppColors.textSecondary,
                           ),
-                        ),
-                        const SizedBox(
-                          height: AppSpacing.md,
-                        ),
-                        Wrap(
-                          spacing: AppSpacing.md,
-                          runSpacing: AppSpacing.sm,
-                          children: [
-                            Text(
-                              '${metrics.profitLoss >= 0 ? '+' : ''}'
-                              'USD ${metrics.profitLoss.toStringAsFixed(2)}',
-                              style: AppTypography.titleMedium.copyWith(
-                                color: resultColor,
-                              ),
-                            ),
-                            Text(
-                              '${metrics.returnPercent >= 0 ? '+' : ''}'
-                              '${metrics.returnPercent.toStringAsFixed(2)}%',
-                              style: AppTypography.titleMedium.copyWith(
-                                color: resultColor,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(
-                          height: AppSpacing.lg,
-                        ),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _SummaryMetric(
-                                label: 'Capital invertido',
-                                value:
-                                    'USD ${metrics.investedValue.toStringAsFixed(2)}',
-                              ),
-                            ),
-                            const SizedBox(
-                              width: AppSpacing.sm,
-                            ),
-                            Expanded(
-                              child: _SummaryMetric(
-                                label: 'Posiciones',
-                                value: '${metrics.positionsCount}',
-                              ),
-                            ),
-                            const SizedBox(
-                              width: AppSpacing.sm,
-                            ),
-                            Expanded(
-                              child: _SummaryMetric(
-                                label: 'Mayor concentración',
-                                value:
-                                    '${metrics.largestPositionWeight.toStringAsFixed(2)}%',
-                              ),
-                            ),
-                          ],
                         ),
                       ],
                     ),
-                  ),
-                  const SizedBox(
-                    height: AppSpacing.xl,
-                  ),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'Posiciones',
-                          style: AppTypography.headlineMedium.copyWith(
-                            color: AppColors.textPrimary,
-                          ),
+                    const SizedBox(
+                      height: AppSpacing.md,
+                    ),
+                    if (positions.isEmpty)
+                      _EmptyPortfolio(
+                        onRegisterPurchase:
+                            registerPurchase,
+                      )
+                    else
+                      for (final position
+                          in positions) ...[
+                        PositionCard(
+                          position: position,
+                          portfolioTotal:
+                              snapshot.marketValue,
+                          onTap: () {
+                            openPositionDetail(
+                              position,
+                            );
+                          },
                         ),
-                      ),
-                      Text(
-                        '${positions.length} activos',
-                        style: AppTypography.bodyMedium.copyWith(
-                          color: AppColors.textSecondary,
+                        const SizedBox(
+                          height: AppSpacing.sm,
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(
-                    height: AppSpacing.md,
-                  ),
-                  if (positions.isEmpty)
-                    const _EmptyPortfolio()
-                  else
-                    for (final position in positions) ...[
-                      PositionCard(
-                        position: position,
-                        portfolioTotal: metrics.marketValue,
-                        onTap: () {
-                          openPositionDetail(position);
-                        },
-                        onEdit: () {
-                          editPosition(position);
-                        },
-                        onDelete: () {
-                          deletePosition(position);
-                        },
-                      ),
-                      const SizedBox(
-                        height: AppSpacing.sm,
-                      ),
-                    ],
-                  const SizedBox(
-                    height: AppSpacing.xxxl,
-                  ),
-                ],
+                      ],
+                    const SizedBox(
+                      height: AppSpacing.xxxl,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  double _largestPositionWeight(
+    List<PortfolioPosition> positions,
+    double marketValue,
+  ) {
+    if (positions.isEmpty || marketValue == 0) {
+      return 0;
+    }
+
+    var largestValue = 0.0;
+
+    for (final position in positions) {
+      if (position.currentValue > largestValue) {
+        largestValue = position.currentValue;
+      }
+    }
+
+    return largestValue / marketValue * 100;
+  }
+}
+
+class _PortfolioSummaryCard extends StatelessWidget {
+  const _PortfolioSummaryCard({
+    required this.marketValue,
+    required this.investedCapital,
+    required this.profitLoss,
+    required this.returnPercent,
+    required this.positionsCount,
+    required this.resultColor,
+    required this.largestPositionWeight,
+  });
+
+  final double marketValue;
+  final double investedCapital;
+  final double profitLoss;
+  final double returnPercent;
+  final int positionsCount;
+  final Color resultColor;
+  final double largestPositionWeight;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(
+        AppSpacing.lg,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(
+          20,
+        ),
+        border: Border.all(
+          color: AppColors.border,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Valor de mercado',
+            style: AppTypography.bodyMedium.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(
+            height: AppSpacing.xs,
+          ),
+          Text(
+            'USD ${marketValue.toStringAsFixed(2)}',
+            style:
+                AppTypography.displayMedium.copyWith(
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(
+            height: AppSpacing.md,
+          ),
+          Wrap(
+            spacing: AppSpacing.md,
+            runSpacing: AppSpacing.sm,
+            children: [
+              Text(
+                '${profitLoss >= 0 ? '+' : ''}'
+                'USD ${profitLoss.toStringAsFixed(2)}',
+                style:
+                    AppTypography.titleMedium.copyWith(
+                  color: resultColor,
+                ),
+              ),
+              Text(
+                '${returnPercent >= 0 ? '+' : ''}'
+                '${returnPercent.toStringAsFixed(2)}%',
+                style:
+                    AppTypography.titleMedium.copyWith(
+                  color: resultColor,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(
+            height: AppSpacing.lg,
+          ),
+          Row(
+            children: [
+              Expanded(
+                child: _SummaryMetric(
+                  label: 'Capital invertido',
+                  value:
+                      'USD ${investedCapital.toStringAsFixed(2)}',
+                ),
+              ),
+              const SizedBox(
+                width: AppSpacing.sm,
+              ),
+              Expanded(
+                child: _SummaryMetric(
+                  label: 'Posiciones',
+                  value: '$positionsCount',
+                ),
+              ),
+              const SizedBox(
+                width: AppSpacing.sm,
+              ),
+              Expanded(
+                child: _SummaryMetric(
+                  label: 'Mayor concentración',
+                  value:
+                      '${largestPositionWeight.toStringAsFixed(2)}%',
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -449,7 +534,8 @@ class _SummaryMetric extends StatelessWidget {
         ),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
           Text(
             label,
@@ -473,7 +559,11 @@ class _SummaryMetric extends StatelessWidget {
 }
 
 class _EmptyPortfolio extends StatelessWidget {
-  const _EmptyPortfolio();
+  const _EmptyPortfolio({
+    required this.onRegisterPurchase,
+  });
+
+  final VoidCallback onRegisterPurchase;
 
   @override
   Widget build(BuildContext context) {
@@ -511,10 +601,22 @@ class _EmptyPortfolio extends StatelessWidget {
             height: AppSpacing.xs,
           ),
           Text(
-            'Agregá tu primera inversión para comenzar.',
+            'Registrá tu primera compra para comenzar.',
             textAlign: TextAlign.center,
             style: AppTypography.bodyMedium.copyWith(
               color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(
+            height: AppSpacing.lg,
+          ),
+          FilledButton.icon(
+            onPressed: onRegisterPurchase,
+            icon: const Icon(
+              Icons.add_shopping_cart_rounded,
+            ),
+            label: const Text(
+              'Registrar compra',
             ),
           ),
         ],

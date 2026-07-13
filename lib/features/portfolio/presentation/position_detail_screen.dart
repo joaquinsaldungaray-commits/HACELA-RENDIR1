@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hacela_rendir/core/design_system/app_spacing.dart';
 import 'package:hacela_rendir/core/design_system/app_typography.dart';
 import 'package:hacela_rendir/core/theme/app_theme.dart';
+import 'package:hacela_rendir/features/assets/domain/asset_type.dart';
 import 'package:hacela_rendir/features/portfolio/domain/portfolio_position.dart';
 
 class PositionDetailScreen extends StatelessWidget {
@@ -11,6 +12,17 @@ class PositionDetailScreen extends StatelessWidget {
   });
 
   final PortfolioPosition position;
+
+  String formatQuantity(double value) {
+    if (value == value.truncateToDouble()) {
+      return value.toInt().toString();
+    }
+
+    return value
+        .toStringAsFixed(6)
+        .replaceFirst(RegExp(r'0+$'), '')
+        .replaceFirst(RegExp(r'\.$'), '');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +42,9 @@ class PositionDetailScreen extends StatelessWidget {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppSpacing.lg),
+          padding: const EdgeInsets.all(
+            AppSpacing.lg,
+          ),
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(
@@ -43,30 +57,39 @@ class PositionDetailScreen extends StatelessWidget {
                     position: position,
                     resultColor: resultColor,
                   ),
-                  const SizedBox(height: AppSpacing.lg),
+                  const SizedBox(
+                    height: AppSpacing.lg,
+                  ),
                   _PositionResultCard(
                     position: position,
                     resultColor: resultColor,
                   ),
-                  const SizedBox(height: AppSpacing.lg),
+                  const SizedBox(
+                    height: AppSpacing.xl,
+                  ),
                   Text(
                     'Información de la posición',
                     style: AppTypography.headlineMedium.copyWith(
                       color: AppColors.textPrimary,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.md),
+                  const SizedBox(
+                    height: AppSpacing.md,
+                  ),
                   GridView.count(
                     crossAxisCount: 2,
                     shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
+                    physics:
+                        const NeverScrollableScrollPhysics(),
                     crossAxisSpacing: AppSpacing.sm,
                     mainAxisSpacing: AppSpacing.sm,
                     childAspectRatio: 1.7,
                     children: [
                       _DetailMetric(
                         label: 'Cantidad',
-                        value: position.quantity.toString(),
+                        value: formatQuantity(
+                          position.quantity,
+                        ),
                         icon: Icons.layers_outlined,
                       ),
                       _DetailMetric(
@@ -91,7 +114,8 @@ class PositionDetailScreen extends StatelessWidget {
                         label: 'Valor de mercado',
                         value:
                             'USD ${position.currentValue.toStringAsFixed(2)}',
-                        icon: Icons.account_balance_wallet_outlined,
+                        icon:
+                            Icons.account_balance_wallet_outlined,
                       ),
                       _DetailMetric(
                         label: 'Rentabilidad',
@@ -105,15 +129,37 @@ class PositionDetailScreen extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: AppSpacing.xl),
+                  const SizedBox(
+                    height: AppSpacing.xl,
+                  ),
+                  Text(
+                    'Ficha del activo',
+                    style: AppTypography.headlineMedium.copyWith(
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(
+                    height: AppSpacing.md,
+                  ),
+                  _AssetInformationCard(
+                    position: position,
+                  ),
+                  const SizedBox(
+                    height: AppSpacing.xl,
+                  ),
                   Text(
                     'Gráfico de evolución',
                     style: AppTypography.headlineMedium.copyWith(
                       color: AppColors.textPrimary,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.md),
+                  const SizedBox(
+                    height: AppSpacing.md,
+                  ),
                   const _ChartPlaceholder(),
+                  const SizedBox(
+                    height: AppSpacing.xxxl,
+                  ),
                 ],
               ),
             ),
@@ -157,7 +203,9 @@ class _PositionHeader extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(width: AppSpacing.md),
+        const SizedBox(
+          width: AppSpacing.md,
+        ),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -168,15 +216,38 @@ class _PositionHeader extends StatelessWidget {
                   color: AppColors.textPrimary,
                 ),
               ),
-              const SizedBox(height: AppSpacing.xxs),
+              const SizedBox(
+                height: AppSpacing.xxs,
+              ),
               Text(
                 position.name,
                 style: AppTypography.bodyLarge.copyWith(
                   color: AppColors.textSecondary,
                 ),
               ),
+              const SizedBox(
+                height: AppSpacing.xs,
+              ),
+              Wrap(
+                spacing: AppSpacing.xs,
+                runSpacing: AppSpacing.xs,
+                children: [
+                  _InformationChip(
+                    label: position.assetType.label,
+                  ),
+                  _InformationChip(
+                    label: position.exchange,
+                  ),
+                  _InformationChip(
+                    label: position.currency,
+                  ),
+                ],
+              ),
             ],
           ),
+        ),
+        const SizedBox(
+          width: AppSpacing.md,
         ),
         Text(
           '${position.profit >= 0 ? '+' : ''}'
@@ -186,6 +257,37 @@ class _PositionHeader extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _InformationChip extends StatelessWidget {
+  const _InformationChip({
+    required this.label,
+  });
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xxs,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceAlt,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: AppColors.border,
+        ),
+      ),
+      child: Text(
+        label,
+        style: AppTypography.labelSmall.copyWith(
+          color: AppColors.textSecondary,
+        ),
+      ),
     );
   }
 }
@@ -203,12 +305,16 @@ class _PositionResultCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: const EdgeInsets.all(
+        AppSpacing.lg,
+      ),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: AppColors.border,
+          color: resultColor.withValues(
+            alpha: 0.35,
+          ),
         ),
       ),
       child: Column(
@@ -220,7 +326,9 @@ class _PositionResultCard extends StatelessWidget {
               color: AppColors.textSecondary,
             ),
           ),
-          const SizedBox(height: AppSpacing.xs),
+          const SizedBox(
+            height: AppSpacing.xs,
+          ),
           Text(
             '${position.profit >= 0 ? '+' : ''}'
             'USD ${position.profit.toStringAsFixed(2)}',
@@ -228,12 +336,149 @@ class _PositionResultCard extends StatelessWidget {
               color: resultColor,
             ),
           ),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(
+            height: AppSpacing.sm,
+          ),
           Text(
             'Valor actual: '
             'USD ${position.currentValue.toStringAsFixed(2)}',
             style: AppTypography.bodyLarge.copyWith(
               color: AppColors.textPrimary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AssetInformationCard extends StatelessWidget {
+  const _AssetInformationCard({
+    required this.position,
+  });
+
+  final PortfolioPosition position;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(
+        AppSpacing.lg,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: AppColors.border,
+        ),
+      ),
+      child: Column(
+        children: [
+          _AssetInformationRow(
+            icon: Icons.category_outlined,
+            label: 'Tipo de activo',
+            value: position.assetType.label,
+          ),
+          const Divider(
+            color: AppColors.border,
+          ),
+          _AssetInformationRow(
+            icon: Icons.account_balance_outlined,
+            label: 'Mercado',
+            value: position.exchange,
+          ),
+          const Divider(
+            color: AppColors.border,
+          ),
+          _AssetInformationRow(
+            icon: Icons.public_rounded,
+            label: 'País',
+            value: position.country,
+          ),
+          const Divider(
+            color: AppColors.border,
+          ),
+          _AssetInformationRow(
+            icon: Icons.currency_exchange_rounded,
+            label: 'Moneda',
+            value: position.currency,
+          ),
+          const Divider(
+            color: AppColors.border,
+          ),
+          _AssetInformationRow(
+            icon: Icons.pie_chart_outline_rounded,
+            label: 'Sector',
+            value: position.sector,
+          ),
+          const Divider(
+            color: AppColors.border,
+          ),
+          _AssetInformationRow(
+            icon: Icons.factory_outlined,
+            label: 'Industria',
+            value: position.industry,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AssetInformationRow extends StatelessWidget {
+  const _AssetInformationRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        vertical: AppSpacing.sm,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: AppColors.primarySoft,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              icon,
+              color: AppColors.primary,
+            ),
+          ),
+          const SizedBox(
+            width: AppSpacing.md,
+          ),
+          Expanded(
+            child: Text(
+              label,
+              style: AppTypography.bodyMedium.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+          const SizedBox(
+            width: AppSpacing.md,
+          ),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: AppTypography.bodyMedium.copyWith(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],
@@ -258,7 +503,9 @@ class _DetailMetric extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: const EdgeInsets.all(
+        AppSpacing.md,
+      ),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
@@ -280,11 +527,14 @@ class _DetailMetric extends StatelessWidget {
               color: AppColors.textSecondary,
             ),
           ),
-          const SizedBox(height: AppSpacing.xxs),
+          const SizedBox(
+            height: AppSpacing.xxs,
+          ),
           Text(
             value,
             style: AppTypography.titleMedium.copyWith(
-              color: valueColor ?? AppColors.textPrimary,
+              color:
+                  valueColor ?? AppColors.textPrimary,
             ),
           ),
         ],
@@ -317,9 +567,12 @@ class _ChartPlaceholder extends StatelessWidget {
             size: 48,
             color: AppColors.textSecondary,
           ),
-          const SizedBox(height: AppSpacing.md),
+          const SizedBox(
+            height: AppSpacing.md,
+          ),
           Text(
-            'El gráfico histórico se incorporará\ncon los datos de mercado.',
+            'El gráfico histórico se incorporará\n'
+            'cuando conectemos los datos de mercado.',
             textAlign: TextAlign.center,
             style: AppTypography.bodyMedium.copyWith(
               color: AppColors.textSecondary,

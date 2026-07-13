@@ -1,3 +1,5 @@
+import 'package:hacela_rendir/features/assets/domain/asset_type.dart';
+
 class PortfolioPosition {
   const PortfolioPosition({
     required this.ticker,
@@ -5,13 +7,27 @@ class PortfolioPosition {
     required this.quantity,
     required this.averagePrice,
     required this.currentPrice,
+    this.assetType = AssetType.other,
+    this.exchange = 'Sin información',
+    this.country = 'Sin información',
+    this.currency = 'USD',
+    this.sector = 'Sin clasificar',
+    this.industry = 'Sin clasificar',
   });
 
   final String ticker;
   final String name;
+
   final double quantity;
   final double averagePrice;
   final double currentPrice;
+
+  final AssetType assetType;
+  final String exchange;
+  final String country;
+  final String currency;
+  final String sector;
+  final String industry;
 
   double get invested => quantity * averagePrice;
 
@@ -33,6 +49,12 @@ class PortfolioPosition {
     double? quantity,
     double? averagePrice,
     double? currentPrice,
+    AssetType? assetType,
+    String? exchange,
+    String? country,
+    String? currency,
+    String? sector,
+    String? industry,
   }) {
     return PortfolioPosition(
       ticker: ticker ?? this.ticker,
@@ -40,6 +62,12 @@ class PortfolioPosition {
       quantity: quantity ?? this.quantity,
       averagePrice: averagePrice ?? this.averagePrice,
       currentPrice: currentPrice ?? this.currentPrice,
+      assetType: assetType ?? this.assetType,
+      exchange: exchange ?? this.exchange,
+      country: country ?? this.country,
+      currency: currency ?? this.currency,
+      sector: sector ?? this.sector,
+      industry: industry ?? this.industry,
     );
   }
 
@@ -50,6 +78,12 @@ class PortfolioPosition {
       'quantity': quantity,
       'averagePrice': averagePrice,
       'currentPrice': currentPrice,
+      'assetType': assetType.name,
+      'exchange': exchange,
+      'country': country,
+      'currency': currency,
+      'sector': sector,
+      'industry': industry,
     };
   }
 
@@ -62,6 +96,18 @@ class PortfolioPosition {
       quantity: (json['quantity'] as num).toDouble(),
       averagePrice: (json['averagePrice'] as num).toDouble(),
       currentPrice: (json['currentPrice'] as num).toDouble(),
+      assetType: AssetType.values.firstWhere(
+        (type) => type.name == json['assetType'],
+        orElse: () => AssetType.other,
+      ),
+      exchange:
+          json['exchange'] as String? ?? 'Sin información',
+      country:
+          json['country'] as String? ?? 'Sin información',
+      currency: json['currency'] as String? ?? 'USD',
+      sector: json['sector'] as String? ?? 'Sin clasificar',
+      industry:
+          json['industry'] as String? ?? 'Sin clasificar',
     );
   }
 }

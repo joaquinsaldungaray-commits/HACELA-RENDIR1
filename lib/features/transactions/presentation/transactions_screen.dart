@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:hacela_rendir/app/router/app_routes.dart';
 import 'package:hacela_rendir/core/design_system/app_spacing.dart';
 import 'package:hacela_rendir/core/design_system/app_typography.dart';
+import 'package:hacela_rendir/core/finance/engine/financial_engine.dart';
 import 'package:hacela_rendir/core/theme/app_theme.dart';
 import 'package:hacela_rendir/features/portfolio/domain/portfolio_position.dart';
 import 'package:hacela_rendir/features/portfolio/services/portfolio_sync_service.dart';
@@ -10,7 +11,6 @@ import 'package:hacela_rendir/features/transactions/data/transaction_repository.
 import 'package:hacela_rendir/features/transactions/domain/portfolio_transaction.dart';
 import 'package:hacela_rendir/features/transactions/presentation/widgets/add_transaction_dialog.dart';
 import 'package:hacela_rendir/features/transactions/presentation/widgets/transaction_card.dart';
-import 'package:hacela_rendir/features/transactions/services/investment_result_calculator.dart';
 import 'package:hacela_rendir/features/transactions/services/transaction_calculator.dart';
 
 class TransactionsScreen extends StatefulWidget {
@@ -56,7 +56,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         openPositions = calculatedPositions;
         isLoading = false;
       });
-    } catch (error) {
+    } catch (_) {
       if (!mounted) {
         return;
       }
@@ -131,7 +131,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           ),
         ),
       );
-    } catch (error) {
+    } catch (_) {
       if (!mounted) {
         return;
       }
@@ -216,7 +216,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           ),
         ),
       );
-    } catch (error) {
+    } catch (_) {
       if (!mounted) {
         return;
       }
@@ -266,10 +266,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       transactions,
     );
 
-    final investmentResult =
-        InvestmentResultCalculator.calculate(
+    final snapshot = FinancialEngine.calculateFromData(
       transactions: transactions,
-      openPositions: openPositions,
+      positions: openPositions,
     );
 
     return Scaffold(
@@ -343,7 +342,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Resultado de inversiones',
+                    'Patrimonio',
                     style:
                         AppTypography.headlineLarge.copyWith(
                       color: AppColors.textPrimary,
@@ -352,9 +351,27 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                   const SizedBox(
                     height: AppSpacing.md,
                   ),
+                  _EquityCard(
+                    totalEquity: snapshot.totalEquity,
+                    cashBalance: snapshot.cashBalance,
+                    marketValue: snapshot.marketValue,
+                  ),
+                  const SizedBox(
+                    height: AppSpacing.xl,
+                  ),
+                  Text(
+                    'Resultado de inversiones',
+                    style:
+                        AppTypography.headlineMedium.copyWith(
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(
+                    height: AppSpacing.md,
+                  ),
                   _TotalResultCard(
-                    totalResult:
-                        investmentResult.totalResult,
+                    totalResult: snapshot.totalResult,
+                    returnPercent: snapshot.returnPercent,
                   ),
                   const SizedBox(
                     height: AppSpacing.md,
@@ -370,24 +387,22 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     children: [
                       _ResultMetricCard(
                         label: 'Resultado realizado',
-                        value:
-                            investmentResult.realizedProfit,
+                        value: snapshot.realizedProfit,
                         icon: Icons.task_alt_rounded,
                       ),
                       _ResultMetricCard(
                         label: 'Resultado no realizado',
-                        value:
-                            investmentResult.unrealizedProfit,
+                        value: snapshot.unrealizedProfit,
                         icon: Icons.show_chart_rounded,
                       ),
                       _ResultMetricCard(
                         label: 'Dividendos',
-                        value: investmentResult.dividends,
+                        value: snapshot.dividends,
                         icon: Icons.payments_outlined,
                       ),
                       _ResultMetricCard(
                         label: 'Comisiones',
-                        value: -investmentResult.fees,
+                        value: -snapshot.fees,
                         icon: Icons.receipt_long_outlined,
                       ),
                     ],
@@ -500,12 +515,138 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   }
 }
 
+class _EquityCard extends StatelessWidget {
+  const _EquityCard({
+    required this.totalEquity,
+    required this.cashBalance,
+    required this.marketValue,
+  });
+
+  final double totalEquity;
+  final double cashBalance;
+  final double marketValue;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(
+        AppSpacing.lg,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(
+          20,
+        ),
+        border: Border.all(
+          color: AppColors.border,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Patrimonio total',
+            style: AppTypography.bodyMedium.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(
+            height: AppSpacing.xs,
+          ),
+          Text(
+            'USD ${totalEquity.toStringAsFixed(2)}',
+            style:
+                AppTypography.displayMedium.copyWith(
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(
+            height: AppSpacing.lg,
+          ),
+          Row(
+            children: [
+              Expanded(
+                child: _EquityDetail(
+                  label: 'Efectivo',
+                  value: cashBalance,
+                ),
+              ),
+              const SizedBox(
+                width: AppSpacing.sm,
+              ),
+              Expanded(
+                child: _EquityDetail(
+                  label: 'Valor de mercado',
+                  value: marketValue,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EquityDetail extends StatelessWidget {
+  const _EquityDetail({
+    required this.label,
+    required this.value,
+  });
+
+  final String label;
+  final double value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(
+        AppSpacing.md,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceAlt,
+        borderRadius: BorderRadius.circular(
+          14,
+        ),
+        border: Border.all(
+          color: AppColors.border,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: AppTypography.labelSmall.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(
+            height: AppSpacing.xxs,
+          ),
+          Text(
+            'USD ${value.toStringAsFixed(2)}',
+            style: AppTypography.titleMedium.copyWith(
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _TotalResultCard extends StatelessWidget {
   const _TotalResultCard({
     required this.totalResult,
+    required this.returnPercent,
   });
 
   final double totalResult;
+  final double returnPercent;
 
   @override
   Widget build(BuildContext context) {
@@ -555,10 +696,10 @@ class _TotalResultCard extends StatelessWidget {
             height: AppSpacing.sm,
           ),
           Text(
-            'Incluye resultados realizados, '
-            'posiciones abiertas y dividendos.',
-            style: AppTypography.bodyMedium.copyWith(
-              color: AppColors.textSecondary,
+            '${returnPercent >= 0 ? '+' : ''}'
+            '${returnPercent.toStringAsFixed(2)}%',
+            style: AppTypography.titleMedium.copyWith(
+              color: resultColor,
             ),
           ),
         ],

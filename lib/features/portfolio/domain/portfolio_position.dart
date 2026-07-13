@@ -9,7 +9,7 @@ class PortfolioPosition {
 
   final String ticker;
   final String name;
-  final int quantity;
+  final double quantity;
   final double averagePrice;
   final double currentPrice;
 
@@ -25,6 +25,22 @@ class PortfolioPosition {
     }
 
     return profit / invested * 100;
+  }
+
+  PortfolioPosition copyWith({
+    String? ticker,
+    String? name,
+    double? quantity,
+    double? averagePrice,
+    double? currentPrice,
+  }) {
+    return PortfolioPosition(
+      ticker: ticker ?? this.ticker,
+      name: name ?? this.name,
+      quantity: quantity ?? this.quantity,
+      averagePrice: averagePrice ?? this.averagePrice,
+      currentPrice: currentPrice ?? this.currentPrice,
+    );
   }
 
   Map<String, dynamic> toJson() {
@@ -43,7 +59,7 @@ class PortfolioPosition {
     return PortfolioPosition(
       ticker: json['ticker'] as String,
       name: json['name'] as String,
-      quantity: json['quantity'] as int,
+      quantity: (json['quantity'] as num).toDouble(),
       averagePrice: (json['averagePrice'] as num).toDouble(),
       currentPrice: (json['currentPrice'] as num).toDouble(),
     );

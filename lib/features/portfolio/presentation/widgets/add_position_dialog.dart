@@ -69,7 +69,7 @@ class _AddPositionDialogState extends State<AddPositionDialog> {
     final position = PortfolioPosition(
       ticker: tickerController.text.trim().toUpperCase(),
       name: nameController.text.trim(),
-      quantity: quantity.toInt(),
+      quantity: quantity,
       averagePrice: averagePrice,
       currentPrice: currentPrice,
     );

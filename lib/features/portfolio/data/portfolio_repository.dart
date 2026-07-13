@@ -6,6 +6,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 class PortfolioRepository {
   static const String _positionsKey = 'portfolio_positions';
 
+  Future<bool> hasStoredPositions() async {
+    final preferences = await SharedPreferences.getInstance();
+
+    return preferences.containsKey(_positionsKey);
+  }
+
   Future<List<PortfolioPosition>> loadPositions() async {
     final preferences = await SharedPreferences.getInstance();
     final rawData = preferences.getString(_positionsKey);
@@ -19,7 +25,7 @@ class PortfolioRepository {
     return decodedData
         .map(
           (item) => PortfolioPosition.fromJson(
-            item as Map<String, dynamic>,
+            Map<String, dynamic>.from(item as Map),
           ),
         )
         .toList();
@@ -31,7 +37,11 @@ class PortfolioRepository {
     final preferences = await SharedPreferences.getInstance();
 
     final encodedData = jsonEncode(
-      positions.map((position) => position.toJson()).toList(),
+      positions
+          .map(
+            (position) => position.toJson(),
+          )
+          .toList(),
     );
 
     await preferences.setString(

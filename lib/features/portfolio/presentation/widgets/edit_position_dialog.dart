@@ -106,7 +106,7 @@ class _EditPositionDialogState extends State<EditPositionDialog> {
     final updatedPosition = PortfolioPosition(
       ticker: tickerController.text.trim().toUpperCase(),
       name: nameController.text.trim(),
-      quantity: quantity.toInt(),
+      quantity: quantity,
       averagePrice: averagePrice,
       currentPrice: currentPrice,
     );

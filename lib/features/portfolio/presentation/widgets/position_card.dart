@@ -20,6 +20,17 @@ class PositionCard extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
+  String formatQuantity(double value) {
+    if (value == value.truncateToDouble()) {
+      return value.toInt().toString();
+    }
+
+    return value
+        .toStringAsFixed(4)
+        .replaceFirst(RegExp(r'0+$'), '')
+        .replaceFirst(RegExp(r'\.$'), '');
+  }
+
   @override
   Widget build(BuildContext context) {
     final isPositive = position.profit >= 0;
@@ -115,11 +126,11 @@ class PositionCard extends StatelessWidget {
                   const SizedBox(width: AppSpacing.xs),
                   PopupMenuButton<String>(
                     tooltip: 'Acciones',
+                    color: AppColors.surfaceAlt,
                     icon: const Icon(
                       Icons.more_vert_rounded,
                       color: AppColors.textSecondary,
                     ),
-                    color: AppColors.surfaceAlt,
                     onSelected: (value) {
                       if (value == 'edit') {
                         onEdit();
@@ -176,7 +187,7 @@ class PositionCard extends StatelessWidget {
                   Expanded(
                     child: _PositionDetail(
                       label: 'Cantidad',
-                      value: position.quantity.toString(),
+                      value: formatQuantity(position.quantity),
                     ),
                   ),
                   Expanded(
